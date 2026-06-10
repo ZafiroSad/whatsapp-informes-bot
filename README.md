@@ -1,123 +1,106 @@
-# 📋 Bot de WhatsApp para Informes Diarios de Prácticas
+# Bot de WhatsApp para informes diarios de prácticas
 
-Un chatbot de WhatsApp que registra lo que haces en tus prácticas estudiantiles —**texto, fotos y audios**— y genera automáticamente un **informe Word (.docx) con formato académico** en tu Google Drive, organizado en carpetas por fecha.
+Hice este bot durante mis prácticas de ingeniería civil porque cada noche me tocaba sentarme a reconstruir de memoria lo que había hecho en el día para el informe. Ahora le mando audios y fotos por WhatsApp mientras trabajo, y cuando termino la jornada me devuelve un Word con formato académico, redactado y guardado en mi Google Drive.
 
-**Costo total: $0.** Sin servidores, sin tarjeta de crédito. Funciona 24/7 sobre Google Apps Script.
+Lo publico por si a alguien más le sirve. Montarlo no cuesta dinero ni requiere saber programar: corre sobre Google Apps Script y las capas gratuitas de la API de WhatsApp (Meta) y de Gemini. Es copiar un archivo, pegar cuatro claves y seguir los pasos de esta guía.
 
-## ✨ ¿Qué hace?
-
-```
-👤  hola
-🤖  ¡Hola! 👋 Soy tu asistente de prácticas...   [🚀 Comenzar]
-👤  [🚀 Comenzar]
-🤖  📝 Perfecto. Envíame un texto, una foto o un audio.
-👤  🎤 (audio contando lo que hiciste hoy)
-🤖  ✅ Audio transcrito y registrado.
-    ¿Deseas agregar algo más?   [➕ Agregar más] [✅ Finalizar]
-👤  📷 (foto de la obra/laboratorio/oficina)
-🤖  ✅ Imagen procesada y guardada como evidencia.   [➕] [✅]
-👤  [✅ Finalizar]
-🤖  📄 ¡Listo! Tu informe se guardó en Drive:
-    INFORME DIARIO_09_06_2026.docx
-```
-
-- 🎤 **Audios** → se transcriben automáticamente (Gemini).
-- 📷 **Fotos** → se describen con IA y se insertan en el informe como *evidencia fotográfica* con pie de figura.
-- ✍️ **Textos** → se registran tal cual.
-- 📄 Al finalizar, la IA redacta un **informe formal en párrafos** (tercera persona impersonal) con todo el material del día.
-- 🗂️ El Word se guarda en Drive dentro de una **subcarpeta con la fecha del día** (`09/06/26`), junto con las evidencias.
-- 📃 El documento incluye **portada académica** (autor, universidad, facultad, ciudad y fecha), tipografía y formato configurables.
-- 🔁 Si finalizas varias veces el mismo día, el informe se **regenera con todo lo del día** (no se duplica).
-
-## 🏗️ Arquitectura
+## Cómo funciona
 
 ```
-Tu WhatsApp ──→ WhatsApp Cloud API (Meta, gratis)
+Tú:   hola
+Bot:  ¡Hola! 👋 Soy tu asistente de prácticas...   [🚀 Comenzar]
+Tú:   [🚀 Comenzar]
+Bot:  📝 Perfecto. Envíame un texto, una foto o un audio.
+Tú:   🎤 (audio contando lo que hiciste)
+Bot:  ✅ Audio transcrito y registrado.
+      ¿Deseas agregar algo más?   [➕ Agregar más] [✅ Finalizar]
+Tú:   📷 (foto de la obra)
+Bot:  ✅ Imagen procesada y guardada como evidencia.
+Tú:   [✅ Finalizar]
+Bot:  📄 ¡Listo! Tu informe se guardó en Drive:
+      INFORME DIARIO_09_06_2026.docx
+```
+
+El bot acepta tres tipos de mensaje. Los audios se transcriben con Gemini, que es lo que más uso: dictar toma un minuto y queda registrado con su hora. Las fotos se guardan en Drive y la IA les escribe una descripción; en el informe aparecen al final como evidencia fotográfica, con pie de figura. Los textos se registran tal cual los escribes.
+
+Al tocar "Finalizar", Gemini redacta el cuerpo del informe en párrafos formales (tercera persona impersonal, sin inventar nada que no esté en el registro) y el script genera el `.docx`: portada con tus datos, desarrollo de actividades y evidencia fotográfica. El archivo queda en una subcarpeta con la fecha del día (por ejemplo `09/06/26`) dentro de la carpeta de Drive que configures.
+
+Si finalizas varias veces el mismo día, el informe se regenera con todo lo registrado hasta ese momento. No se duplican archivos.
+
+## Arquitectura
+
+```
+Tu WhatsApp ──→ WhatsApp Cloud API (Meta)
                      │ webhook
                      ▼
-            Google Apps Script (gratis, 24/7)
-              ├──→ Gemini API (gratis): transcripción, visión y redacción
+            Google Apps Script (24/7, sin servidor propio)
+              ├──→ Gemini API: transcripción, visión y redacción
               ├──→ Google Sheets: registro crudo del día
               └──→ Google Drive: informe .docx + evidencias
 ```
 
-## 📦 Requisitos
+Apps Script hace de servidor: recibe los mensajes que Meta le envía por webhook y responde llamando a la API de WhatsApp. Como vive en tu cuenta de Google, escribir en tu Drive no necesita credenciales adicionales.
 
-| Qué | Para qué | Costo |
-|---|---|---|
-| Cuenta de Google | Apps Script, Drive y clave de Gemini | Gratis |
-| Cuenta de Facebook/Meta | La API de WhatsApp (developers.facebook.com) | Gratis |
-| Un WhatsApp en tu teléfono | Chatear con el bot | — |
+## Requisitos
 
-No necesitas saber programar: es copiar, pegar y seguir los pasos.
+- Una cuenta de Google (para Apps Script, Drive y la clave de Gemini).
+- Una cuenta de Facebook/Meta (para crear la app de WhatsApp en developers.facebook.com).
+- WhatsApp en tu teléfono.
 
----
+Todo dentro de las capas gratuitas. Para uso personal no vas a acercarte a los límites.
 
-# 🚀 Instalación
+## Instalación
 
-## Paso 1 — Clave de Gemini (2 min)
+El orden importa: primero Gemini y el script (así tienes la URL del webhook), después Meta.
 
-1. Entra a **[aistudio.google.com](https://aistudio.google.com)** con tu cuenta de Google.
-2. Clic en **"Get API key"** → **"Create API key"**.
-3. Copia la clave (empieza con `AIza...`).
+### 1. Clave de Gemini
 
-## Paso 2 — Crear el script (10 min)
+Entra a [aistudio.google.com](https://aistudio.google.com) con tu cuenta de Google, clic en "Get API key" y crea una. Copia la clave (empieza con `AIza...`).
 
-1. Entra a **[script.google.com](https://script.google.com)** → **+ Nuevo proyecto**.
-2. Borra el contenido de `Código.gs` y pega el contenido completo de [`Code.gs`](Code.gs) de este repositorio.
-3. **Edita la sección `CONFIGURACIÓN`** al inicio del archivo: tu nombre, universidad, carpeta de Drive (opcional), zona horaria, etc.
-4. Ve a ⚙️ **Configuración del proyecto** → **Propiedades de la secuencia de comandos** → agrega estas 4:
+### 2. Crear el script
+
+1. En [script.google.com](https://script.google.com) crea un proyecto nuevo, borra el contenido de `Código.gs` y pega el contenido completo de [`Code.gs`](Code.gs).
+2. Edita la sección `CONFIGURACIÓN` al inicio del archivo: tu nombre, universidad, carpeta de Drive (opcional), zona horaria.
+3. En ⚙️ Configuración del proyecto → "Propiedades de la secuencia de comandos", agrega estas cuatro:
 
    | Propiedad | Valor |
    |---|---|
-   | `VERIFY_TOKEN` | Una palabra secreta que tú inventes, ej: `mi-bot-2026` |
-   | `GEMINI_API_KEY` | La clave del Paso 1 |
-   | `WHATSAPP_TOKEN` | Escribe `pendiente` (se llena en el Paso 3) |
-   | `PHONE_NUMBER_ID` | Escribe `pendiente` (se llena en el Paso 3) |
+   | `VERIFY_TOKEN` | Una palabra secreta que tú inventes, ej. `mi-bot-2026` |
+   | `GEMINI_API_KEY` | La clave del paso 1 |
+   | `WHATSAPP_TOKEN` | Escribe `pendiente` por ahora (se llena en el paso 3) |
+   | `PHONE_NUMBER_ID` | Igual, `pendiente` por ahora |
 
-5. **Autoriza el script**: en el editor, selecciona la función `chequeo` y pulsa **▶ Ejecutar** → "Revisar permisos" → tu cuenta → "Configuración avanzada" → "Ir a... (no seguro)" → **Permitir**. (Es tu propio script; es seguro.)
-   - Deberías ver `GEMINI: OK ✅` y `Carpeta de informes: OK ✅` en el registro.
-6. **Publica como aplicación web**: **Implementar** → **Nueva implementación** → tipo **Aplicación web**:
-   - Ejecutar como: **Yo**
-   - Quién tiene acceso: **Cualquier usuario** ⚠️ importante
-   - **Implementar** y copia la URL que termina en `/exec`.
+4. Autoriza el script: en el editor selecciona la función `chequeo` y pulsa Ejecutar. Google te pedirá permisos; acepta pasando por "Configuración avanzada" → "Ir a... (no seguro)". Es tu propio script, el aviso es estándar. En el registro deberías ver `GEMINI: OK` y `Carpeta de informes: OK`.
+5. Publícalo: Implementar → Nueva implementación → tipo "Aplicación web", ejecutar como **Yo**, acceso para **Cualquier usuario** (esto último es lo que más se olvida). Copia la URL que termina en `/exec`.
 
-> ⚠️ **Cada vez que modifiques el código**: Implementar → **Administrar implementaciones** → ✏️ → Versión: **"Nueva versión"** → Implementar. Si no, WhatsApp seguirá usando el código viejo.
+Cuando modifiques el código más adelante, no basta con guardar: ve a Implementar → Administrar implementaciones → editar → "Nueva versión". Si no, WhatsApp sigue hablando con el código viejo. Este detalle me costó una tarde.
 
-## Paso 3 — App de WhatsApp en Meta (15 min)
+### 3. App de WhatsApp en Meta
 
-1. Entra a **[developers.facebook.com](https://developers.facebook.com)** → **Mis apps** → **Crear app**.
-2. Caso de uso: **Otro** → Tipo: **Negocios** → ponle nombre → Crear.
-3. Busca el producto **WhatsApp** → **Configurar** (si pide crear un portafolio comercial, créalo con cualquier nombre).
-4. En **WhatsApp → Configuración de la API**:
-   - Copia el **token de acceso temporal** → pégalo en la propiedad `WHATSAPP_TOKEN` del script. *(Caduca en 24 h; en el Paso 5 lo haces permanente.)*
-   - Copia el **Identificador del número de teléfono** → pégalo en `PHONE_NUMBER_ID`.
-5. En la sección **"Para"**: **Administrar lista de números** → agrega **tu número personal** de WhatsApp → verifica el código que te llega.
-6. En **WhatsApp → Configuración** (webhook):
-   - **URL de devolución de llamada**: la URL `/exec` del Paso 2.6
-   - **Token de verificación**: tu `VERIFY_TOKEN`
-   - **Verificar y guardar** ✅
-   - En **Campos de webhook** → **Administrar** → suscríbete a **`messages`**.
+1. En [developers.facebook.com](https://developers.facebook.com) → Mis apps → Crear app. Caso de uso "Otro", tipo "Negocios".
+2. En el panel de la app busca el producto WhatsApp y configúralo. Si te pide crear un portafolio comercial, créalo con cualquier nombre.
+3. En WhatsApp → Configuración de la API copia dos cosas hacia las propiedades del script: el **token de acceso temporal** (a `WHATSAPP_TOKEN`) y el **identificador del número de teléfono** (a `PHONE_NUMBER_ID`). El token temporal caduca en 24 horas; el paso 5 lo resuelve.
+4. En la sección "Para", agrega tu número personal de WhatsApp a la lista de destinatarios y verifica el código que te llega.
+5. En WhatsApp → Configuración conecta el webhook: la URL `/exec` del paso anterior como URL de devolución de llamada, y tu `VERIFY_TOKEN` como token de verificación. Tras verificar, suscríbete al campo `messages`.
 
-## Paso 4 — ¡Probar! 🎉
+### 4. Probar
 
-Escribe **"hola"** desde tu WhatsApp al número de prueba de Meta (aparece en "Configuración de la API"). El bot debe responder con el botón **🚀 Comenzar**.
+Escríbele "hola" al número de prueba de Meta desde tu WhatsApp. Debe responder con el botón de comenzar. Envía un audio, una foto, finaliza, y revisa tu Drive.
 
-💡 *Tip: guarda el número del bot como contacto en tu teléfono con el nombre que quieras (ej. "Asistente Prácticas 🤖").*
+Un consejo: guarda el número del bot como contacto en tu teléfono con el nombre que quieras, porque el nombre público del número de prueba no se puede cambiar.
 
-## Paso 5 — Token permanente (para que no caduque cada 24 h)
+### 5. Token permanente
 
-1. Entra a **[business.facebook.com/settings](https://business.facebook.com/settings)**.
-2. **Usuarios → Usuarios del sistema** → **Agregar** → rol: **Administrador**.
-3. En el usuario creado: **Agregar activos** → **Apps** → tu app → activa **Administrar app**.
-4. **Generar token nuevo** → tu app → Caducidad: **Nunca** → permisos `whatsapp_business_messaging` y `whatsapp_business_management` → Generar.
-5. Reemplaza `WHATSAPP_TOKEN` en las propiedades del script con ese token.
+El token del paso 3 muere a las 24 horas. Para uno que no caduca:
 
----
+1. En [business.facebook.com/settings](https://business.facebook.com/settings) → Usuarios → Usuarios del sistema, crea uno con rol Administrador.
+2. Agrégale tu app como activo, con permiso "Administrar app".
+3. Genera un token con caducidad "Nunca" y los permisos `whatsapp_business_messaging` y `whatsapp_business_management`.
+4. Reemplaza `WHATSAPP_TOKEN` en las propiedades del script.
 
-# 🎨 Personalización
+## Personalización
 
-Todo está en la sección `CONFIGURACIÓN` al inicio de [`Code.gs`](Code.gs):
+Todo lo editable está en la sección `CONFIGURACIÓN` de [`Code.gs`](Code.gs):
 
 | Constante | Qué controla |
 |---|---|
@@ -126,28 +109,30 @@ Todo está en la sección `CONFIGURACIÓN` al inicio de [`Code.gs`](Code.gs):
 | `DAY_FOLDER_FORMAT` | Formato de la carpeta del día: `dd/MM/yy` → `09/06/26` |
 | `FONT`, `FONT_SIZE`, `LINE_SPACING` | Tipografía del documento |
 | `PORTADA` | Título, autor, universidad, facultad y ciudad de la portada |
-| `TZ` | Zona horaria (ej. `America/Bogota`, `America/Mexico_City`) |
+| `TZ` | Zona horaria, ej. `America/Bogota` |
 
-Los textos que envía el bot están en las funciones `handleMessage_`, `askNext_` y `finishReport_` — edítalos a tu gusto.
+Los textos que envía el bot están en las funciones `handleMessage_`, `askNext_` y `finishReport_`, por si quieres cambiarle el tono. El prompt con el que Gemini redacta el informe está en `finishReport_`; ajustarlo cambia el estilo de la redacción.
 
-# 🛠️ Solución de problemas
+## Problemas frecuentes
 
-- **El bot no responde** → en script.google.com abre **Ejecuciones** (menú izquierdo): ahí ves cada mensaje recibido y el error exacto. También se crea una pestaña *Errores* en la hoja de cálculo *Registro Bot Prácticas* de tu Drive.
-- **Respondía y dejó de hacerlo** → casi siempre es el token temporal caducado (Paso 5) o que cambiaste código sin crear **nueva versión** de la implementación.
-- **`(#131030) Recipient phone number not in allowed list`** → te faltó agregar y verificar tu número como destinatario (Paso 3.5).
-- **El Word no se ve con la fuente configurada en la vista previa de Drive** → es normal: Google Docs no tiene todas las fuentes. Al abrirlo en Microsoft Word se ve correctamente.
-- **Sincronizas Drive con tu PC y las carpetas de fecha fallan** → cambia `DAY_FOLDER_FORMAT` a `'dd-MM-yy'` (las barras no son válidas en carpetas de Windows/Mac).
+El bot no responde: en script.google.com abre "Ejecuciones" (menú izquierdo). Ahí aparece cada mensaje recibido con su error exacto. Los errores también quedan en una pestaña de la hoja de cálculo "Registro Bot Prácticas" de tu Drive.
 
-# ⚠️ Limitaciones
+Respondía y dejó de hacerlo: casi siempre es el token temporal caducado (paso 5), o que cambiaste código sin crear nueva versión de la implementación.
 
-- El **número de prueba** de Meta solo puede chatear con hasta **5 números** que tú registres — perfecto para uso personal. Para un número público "de verdad" hay que registrar un número propio en la misma app de Meta.
-- La capa gratuita de Gemini tiene límites de uso por minuto/día, de sobra para uso personal.
-- Apps Script limita cada ejecución a 6 minutos — suficiente incluso para informes con varias fotos.
+Error `(#131030) Recipient phone number not in allowed list`: falta agregar y verificar tu número como destinatario (paso 3.4).
 
-# 📄 Licencia
+El Word no se ve con la fuente configurada en la vista previa de Drive: normal, Google Docs no tiene todas las fuentes. Al abrirlo en Word se ve bien, porque la fuente queda declarada en el archivo.
 
-[MIT](LICENSE) — úsalo, modifícalo y compártelo libremente.
+Sincronizas Drive con tu PC y las carpetas de fecha dan error: cambia `DAY_FOLDER_FORMAT` a `'dd-MM-yy'`. Las barras no son válidas en nombres de carpeta de Windows ni macOS.
 
----
+## Limitaciones
 
-*Creado por un estudiante, para estudiantes que quieren dedicar su tiempo a las prácticas y no a transcribir lo que hicieron.* ✏️
+El número de prueba de Meta solo puede chatear con los números que registres como destinatarios (máximo 5). Para uso personal sobra; si quisieras un bot público tendrías que registrar un número propio en la misma app, lo cual exige un teléfono que no esté ya en WhatsApp.
+
+La capa gratuita de Gemini tiene límites por minuto y por día. En uso normal (un puñado de audios y fotos al día) no se alcanzan.
+
+Apps Script corta cada ejecución a los 6 minutos. Generar un informe con varias fotos toma menos de uno, así que en la práctica no es problema.
+
+## Licencia
+
+[MIT](LICENSE). Úsalo y modifícalo como quieras. Si lo montas y algo de esta guía no te funcionó, abre un issue.
